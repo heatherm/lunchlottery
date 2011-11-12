@@ -7,14 +7,15 @@ class Person < ActiveRecord::Base
 
   belongs_to :location
   
-  scope :opted_in, where(:opt_in => true)
+  scope :opted_in, where("opt_in_datetime IS NOT null and opt_in_datetime >= ?", DateTime.now)
+  scope :subscribed, where(:subscribed => true)
 
   def self.find_by_authentication_token!(token)
     find_by_authentication_token(token) or raise "I couldn't find that token."
   end
 
   def going?
-    self.opt_in
+    Person.opted_in.where(:id => self).exists?
   end
 
   def gravatar_url
