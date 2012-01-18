@@ -55,7 +55,7 @@ describe PeopleController do
       Location.create!(:name => "mylocation", :address => "149 9th Street San Francisco, CA")
 
       expect {
-        post :create, :person => { :email => "me@example.com" }, :location => "mylocation"
+        post :create, :person => {:email => "me@example.com"}, :location => "mylocation"
       }.to change(Person, :count).by(1)
 
       response.should redirect_to("/mylocation")
@@ -64,7 +64,7 @@ describe PeopleController do
 
     it "should redirect to home if the location doesn't exist" do
       expect {
-        post :create, :person => { :email => "me@example.com" }, :location => "badlocation"
+        post :create, :person => {:email => "me@example.com"}, :location => "badlocation"
       }.not_to change(Person, :count)
 
       response.should redirect_to("/")
@@ -75,11 +75,11 @@ describe PeopleController do
       location = Location.create!(:name => "mylocation", :address => "149 9th Street San Francisco, CA")
       new_people(2, location).map(&:save!)
 
-      other_location = Location.create!(:name => "my_other_location",:address => "149 9th Street San Francisco, CA")
+      other_location = Location.create!(:name => "my_other_location", :address => "149 9th Street San Francisco, CA")
       new_people(3, other_location).map(&:save!)
 
       expect {
-        post :create, :person => { :email => "me" }, :location => "mylocation"
+        post :create, :person => {:email => "me"}, :location => "mylocation"
       }.to change(Person, :count).by(0)
 
       assigns(:people_count).should == 2
@@ -87,13 +87,22 @@ describe PeopleController do
       response.should render_template("people/index")
       response.body.should =~ /not valid/
     end
+
+    it "should re-subscribe the person if the email address of an existing unsubscribed person is entered" do
+      person = create_person(:email => "existing@example.com", :subscribed => false)
+      post :create, :person => {:email => "existing@example.com"}, :location => person.location.name
+
+      response.should be_redirect
+      flash[:message].should == "Cool, you're signed up!"
+      person.reload.should be_subscribed
+    end
   end
 
   describe "#update" do
     let(:person) { create_person(:email => "foo@example.com") }
 
     context "with a valid token, setting opt_in_datetime false" do
-      before { get :update, :token => person.authentication_token, :person => { :opt_in_datetime => "false" } }
+      before { get :update, :token => person.authentication_token, :person => {:opt_in_datetime => "false"} }
 
       it { assigns(:person).should be_present }
       it { assigns(:changed_opt_in_datetime).should == true }
@@ -123,7 +132,7 @@ describe PeopleController do
     context "with a valid token, setting subscribed to false" do
       before do
         person.should be_subscribed
-        get :update, :token => person.authentication_token, :person => { :subscribed => "false" }
+        get :update, :token => person.authentication_token, :person => {:subscribed => "false"}
       end
 
       it "sets the subscribed flag to false" do
@@ -143,18 +152,18 @@ describe PeopleController do
         person_two = create_person(:email => "bar@example.com", :location => person.location, :opt_in_datetime => future)
         person_three = create_person(:email => "baz@example.com", :location => person.location, :opt_in_datetime => nil)
         person_four = create_person(:email => "joe@example.com", :location => Location.new(:name => "test_two", :address => "123 9th Street Boise, ID"))
-        get :update, :token => person.authentication_token, :person => { :opt_in_datetime => future }
+        get :update, :token => person.authentication_token, :person => {:opt_in_datetime => future}
       end
-      
+
       it "should render a button to not go" do
         person.reload.should be_going
         response.should have_selector("input", :type => 'submit', :value => "Actually, I don't want to go")
       end
-      
+
       it "should render ALL of the people that have opted-in" do
         assigns(:people).map(&:email).should =~ ["foo@example.com", "bar@example.com"]
       end
-      
+
       it "should render the actual gravatars of people opted-in" do
         Nokogiri::HTML(response.body).css("img.gravatar").map { |node| node.attr("src") }.should =~ assigns(:people).map(&:gravatar_url)
       end

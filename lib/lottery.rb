@@ -14,8 +14,8 @@ module Lottery
   end
 
   def self.send_reminders!
-    Person.all.each do |person|
-      Notifier.remind(person).deliver if person.subscribed?
+    Person.subscribed.each do |person|
+      Notifier.remind(person).deliver
     end
   end
 end

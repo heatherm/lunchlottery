@@ -10,12 +10,12 @@ class PeopleController < ApplicationController
   end
 
   def create
-    @person = Person.new(params[:person].merge(:location => @location))
-    if @person.save
+    @person = Person.find_or_create_by_email(params[:person][:email])
+    if @person.update_attributes(params[:person].merge(:location => @location, :subscribed => true))
       flash[:message] = "Cool, you're signed up!"
       redirect_to location_path(@location)
     else
-      load_people()
+      load_people
       render :template => "people/index"
     end
   end
